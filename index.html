@@ -1,0 +1,11 @@
+async function sendProfit(wallet, profit) {
+  try {
+    await fetch("/update-balance", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId: wallet, amount: profit }),
+    });
+  } catch (err) {
+    console.error("Error sending profit:", err);
+  }
+}
