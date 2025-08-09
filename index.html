@@ -1,167 +1,126 @@
 <!DOCTYPE html>
 <html lang="ar">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>لعبة القفز لربح USDT</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background: #222;
-            color: white;
-            font-family: Arial, sans-serif;
-            text-align: center;
-        }
-        canvas {
-            background: #333;
-            display: block;
-            margin: auto;
-            margin-top: 20px;
-        }
-        #balance {
-            font-size: 20px;
-            margin-top: 10px;
-        }
-        #withdraw-section {
-            margin-top: 15px;
-            display: none;
-        }
-        input, button {
-            padding: 10px;
-            margin-top: 5px;
-            border-radius: 5px;
-            border: none;
-        }
-        button {
-            background: #28a745;
-            color: white;
-            cursor: pointer;
-        }
-        button:disabled {
-            background: #555;
-            cursor: not-allowed;
-        }
-    </style>
+<meta charset="UTF-8">
+<title>لعبة القفز لربح USDT</title>
+<style>
+    body {
+        text-align: center;
+        font-family: Arial, sans-serif;
+        background: #f0f0f0;
+        direction: rtl;
+    }
+    #game {
+        position: relative;
+        width: 300px;
+        height: 300px;
+        margin: 50px auto;
+        background: #ddd;
+        overflow: hidden;
+        border: 2px solid #aaa;
+        border-radius: 10px;
+    }
+    #player {
+        position: absolute;
+        bottom: 0;
+        left: 130px;
+        width: 40px;
+        height: 40px;
+        background: gold;
+        border-radius: 5px;
+    }
+    button {
+        padding: 10px 20px;
+        margin: 10px;
+        font-size: 16px;
+        cursor: pointer;
+    }
+    #withdraw-section {
+        display: none;
+        margin-top: 20px;
+    }
+    input {
+        padding: 5px;
+        width: 250px;
+        font-size: 14px;
+        margin-bottom: 10px;
+    }
+</style>
 </head>
 <body>
-    <h1>🏆 لعبة القفز لربح USDT</h1>
-    <div id="balance">رصيدك: $0</div>
 
-    <canvas id="gameCanvas" width="400" height="400"></canvas>
+<h1>💰 لعبة القفز لربح USDT</h1>
+<div id="game">
+    <div id="player"></div>
+</div>
 
-    <div id="withdraw-section">
-        <input type="text" id="walletAddress" placeholder="أدخل عنوان محفظتك TRC20">
-        <button id="withdrawBtn">💸 سحب الأرباح</button>
-    </div>
+<h2>إجمالي الأرباح: <span id="earnings">0</span> USDT</h2>
+<button onclick="jump()">قفز</button>
 
-    <script>
-        let canvas = document.getElementById("gameCanvas");
-        let ctx = canvas.getContext("2d");
+<div id="withdraw-section">
+    <input type="text" id="wallet" placeholder="أدخل عنوان محفظة TRC20">
+    <br>
+    <button onclick="withdraw()">سحب الأرباح</button>
+</div>
 
-        let player = { x: 50, y: 350, size: 20, dy: 0, jumpPower: -8, gravity: 0.5 };
-        let obstacles = [];
-        let score = 0;
-        let balance = 0;
-        let gameSpeed = 2;
+<script>
+let earnings = 0;
+let jumpCount = 0;
 
-        function drawPlayer() {
-            ctx.fillStyle = "yellow";
-            ctx.fillRect(player.x, player.y, player.size, player.size);
+function getJumpReward(jumpNumber) {
+    if (jumpNumber === 1) return 100;
+    if (jumpNumber === 2) return 200;
+    if (jumpNumber === 3) return 300;
+    if (jumpNumber === 4) return 600;
+    if (jumpNumber > 4) return 600 + (jumpNumber - 4) * 200;
+}
+
+function jump() {
+    jumpCount++;
+    let reward = getJumpReward(jumpCount);
+    earnings += reward;
+    document.getElementById("earnings").innerText = earnings;
+
+    let player = document.getElementById("player");
+    player.style.transition = "bottom 0.3s";
+    player.style.bottom = "100px";
+    setTimeout(() => {
+        player.style.bottom = "0px";
+    }, 300);
+
+    if (earnings >= 250) {
+        document.getElementById("withdraw-section").style.display = "block";
+    }
+}
+
+function withdraw() {
+    let wallet = document.getElementById("wallet").value.trim();
+    if (!wallet) {
+        alert("الرجاء إدخال عنوان محفظة TRC20");
+        return;
+    }
+
+    fetch("/withdraw", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet, amount: earnings })
+    })
+    .then(res => res.json())
+    .then(data => {
+        alert(data.message || "تم إرسال طلب السحب");
+        if (data.success) {
+            earnings = 0;
+            jumpCount = 0;
+            document.getElementById("earnings").innerText = earnings;
+            document.getElementById("withdraw-section").style.display = "none";
         }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("حدث خطأ أثناء عملية السحب");
+    });
+}
+</script>
 
-        function drawObstacles() {
-            ctx.fillStyle = "red";
-            obstacles.forEach(obs => {
-                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
-            });
-        }
-
-        function updateObstacles() {
-            if (Math.random() < 0.02) {
-                obstacles.push({ x: 400, y: 350, width: 20, height: 50 });
-            }
-            obstacles.forEach(obs => {
-                obs.x -= gameSpeed;
-            });
-            obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
-        }
-
-        function updatePlayer() {
-            player.y += player.dy;
-            player.dy += player.gravity;
-
-            if (player.y > 350) {
-                player.y = 350;
-                player.dy = 0;
-            }
-        }
-
-        function detectCollision() {
-            obstacles.forEach(obs => {
-                if (player.x < obs.x + obs.width &&
-                    player.x + player.size > obs.x &&
-                    player.y < obs.y + obs.height &&
-                    player.y + player.size > obs.y) {
-                    score = 0; // إعادة النقاط
-                    balance = 0; // إعادة الأرباح
-                    updateBalance();
-                }
-            });
-        }
-
-        function updateBalance() {
-            document.getElementById("balance").innerText = `رصيدك: $${balance.toFixed(2)}`;
-            if (balance >= 250) {
-                document.getElementById("withdraw-section").style.display = "block";
-            }
-        }
-
-        function gameLoop() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            drawPlayer();
-            drawObstacles();
-            updateObstacles();
-            updatePlayer();
-            detectCollision();
-
-            score++;
-            balance += 0.05; // كل قفزة تزيد الرصيد
-            updateBalance();
-
-            requestAnimationFrame(gameLoop);
-        }
-
-        document.addEventListener("keydown", (e) => {
-            if (e.code === "Space" && player.y >= 350) {
-                player.dy = player.jumpPower;
-            }
-        });
-
-        document.getElementById("withdrawBtn").addEventListener("click", () => {
-            let address = document.getElementById("walletAddress").value.trim();
-            if (!address) {
-                alert("الرجاء إدخال عنوان المحفظة");
-                return;
-            }
-            fetch("/withdraw", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ address: address, amount: balance })
-            })
-            .then(res => res.json())
-            .then(data => {
-                alert(data.message);
-                if (data.success) {
-                    balance = 0;
-                    updateBalance();
-                    document.getElementById("withdraw-section").style.display = "none";
-                }
-            })
-            .catch(err => alert("حدث خطأ في عملية السحب"));
-        });
-
-        gameLoop();
-    </script>
 </body>
 </html>
