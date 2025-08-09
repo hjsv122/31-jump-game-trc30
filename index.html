@@ -1,11 +1,167 @@
-async function sendProfit(wallet, profit) {
-  try {
-    await fetch("/update-balance", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId: wallet, amount: profit }),
-    });
-  } catch (err) {
-    console.error("Error sending profit:", err);
-  }
-}
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لعبة القفز لربح USDT</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: #222;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        canvas {
+            background: #333;
+            display: block;
+            margin: auto;
+            margin-top: 20px;
+        }
+        #balance {
+            font-size: 20px;
+            margin-top: 10px;
+        }
+        #withdraw-section {
+            margin-top: 15px;
+            display: none;
+        }
+        input, button {
+            padding: 10px;
+            margin-top: 5px;
+            border-radius: 5px;
+            border: none;
+        }
+        button {
+            background: #28a745;
+            color: white;
+            cursor: pointer;
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>🏆 لعبة القفز لربح USDT</h1>
+    <div id="balance">رصيدك: $0</div>
+
+    <canvas id="gameCanvas" width="400" height="400"></canvas>
+
+    <div id="withdraw-section">
+        <input type="text" id="walletAddress" placeholder="أدخل عنوان محفظتك TRC20">
+        <button id="withdrawBtn">💸 سحب الأرباح</button>
+    </div>
+
+    <script>
+        let canvas = document.getElementById("gameCanvas");
+        let ctx = canvas.getContext("2d");
+
+        let player = { x: 50, y: 350, size: 20, dy: 0, jumpPower: -8, gravity: 0.5 };
+        let obstacles = [];
+        let score = 0;
+        let balance = 0;
+        let gameSpeed = 2;
+
+        function drawPlayer() {
+            ctx.fillStyle = "yellow";
+            ctx.fillRect(player.x, player.y, player.size, player.size);
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = "red";
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+            });
+        }
+
+        function updateObstacles() {
+            if (Math.random() < 0.02) {
+                obstacles.push({ x: 400, y: 350, width: 20, height: 50 });
+            }
+            obstacles.forEach(obs => {
+                obs.x -= gameSpeed;
+            });
+            obstacles = obstacles.filter(obs => obs.x + obs.width > 0);
+        }
+
+        function updatePlayer() {
+            player.y += player.dy;
+            player.dy += player.gravity;
+
+            if (player.y > 350) {
+                player.y = 350;
+                player.dy = 0;
+            }
+        }
+
+        function detectCollision() {
+            obstacles.forEach(obs => {
+                if (player.x < obs.x + obs.width &&
+                    player.x + player.size > obs.x &&
+                    player.y < obs.y + obs.height &&
+                    player.y + player.size > obs.y) {
+                    score = 0; // إعادة النقاط
+                    balance = 0; // إعادة الأرباح
+                    updateBalance();
+                }
+            });
+        }
+
+        function updateBalance() {
+            document.getElementById("balance").innerText = `رصيدك: $${balance.toFixed(2)}`;
+            if (balance >= 250) {
+                document.getElementById("withdraw-section").style.display = "block";
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            drawObstacles();
+            updateObstacles();
+            updatePlayer();
+            detectCollision();
+
+            score++;
+            balance += 0.05; // كل قفزة تزيد الرصيد
+            updateBalance();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.code === "Space" && player.y >= 350) {
+                player.dy = player.jumpPower;
+            }
+        });
+
+        document.getElementById("withdrawBtn").addEventListener("click", () => {
+            let address = document.getElementById("walletAddress").value.trim();
+            if (!address) {
+                alert("الرجاء إدخال عنوان المحفظة");
+                return;
+            }
+            fetch("/withdraw", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ address: address, amount: balance })
+            })
+            .then(res => res.json())
+            .then(data => {
+                alert(data.message);
+                if (data.success) {
+                    balance = 0;
+                    updateBalance();
+                    document.getElementById("withdraw-section").style.display = "none";
+                }
+            })
+            .catch(err => alert("حدث خطأ في عملية السحب"));
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
