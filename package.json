@@ -1,18 +1,16 @@
 {
-  "name": "usdt-jump-game",
+  "name": "jump-to-earn-trc20",
   "version": "1.0.0",
-  "description": "Jump Game with real USDT TRC20 withdrawal",
+  "description": "Jump to earn USDT TRC20 game with real withdrawal",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
+    "axios": "^1.6.8",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "express": "^4.18.2",
-    "tronweb": "^4.4.0"
-  },
-  "engines": {
-    "node": ">=16.x"
+    "tronweb": "^5.2.0"
   }
 }
